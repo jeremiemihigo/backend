@@ -50,7 +50,6 @@ const modelDemande = require("./Models/Demande")
 const asyncLab = require("async")
 
 app.get("/updte", (req, res)=>{
-  console.log("interieur")
   try {
     asyncLab.waterfall([
       function(done){
@@ -59,7 +58,6 @@ app.get("/updte", (req, res)=>{
         })
       },
       function(agent, done){
-        console.log(agent)
         for(let i=0; i<agent.length; i++){
           modelDemande.updateMany({codeAgent : agent[i]._id}, {$set : {idShop : agent[i].agent.idShop}}).then(result=>{
             console.log(result)
