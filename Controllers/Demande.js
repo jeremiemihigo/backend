@@ -488,6 +488,14 @@ module.exports = {
                   as: 'reponseId',
                 },
               },
+              {
+                $lookup: {
+                  from: 'agentadmins',
+                  localField: 'codeAgent',
+                  foreignField: 'codeAgent',
+                  as: 'agentadmin',
+                },
+              },
               
             ])
             .then((reclamation) => {

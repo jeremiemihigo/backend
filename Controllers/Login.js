@@ -14,7 +14,7 @@ exports.login = async (req, res) => {
   try {
     //const user = await Model_User.aggregate([ look])
     const user = await ModelAgent.findOne({
-      codeAgent: username,
+      codeAgent: username.toUpperCase(),
       active: true,
     }).select('+password')
 
@@ -33,7 +33,7 @@ exports.login = async (req, res) => {
   }
 }
 
-exports.resetPassword = (req, res) => {
+exports.resetPassword = (req, res, next) => {
   try {
     const { id } = req.body
     asyncLab.waterfall(
@@ -66,7 +66,8 @@ exports.resetPassword = (req, res) => {
       ],
       function (response) {
         if (response) {
-          return res.status(200).json('Opération effectuée')
+          req.recherche = id
+          next()
         }
       },
     )
@@ -98,6 +99,58 @@ exports.UpdatePassword = async (req, res) => {
           if (isMatch) {
             bcrypt.hash(nouvelle, 10, function (err, bcrypePassword) {
               ModelAgent.findOneAndUpdate(
+                { codeAgent },
+                { $set: { password: bcrypePassword, first: false } },
+                { new: true },
+              )
+                .then((response) => {
+                  done(response)
+                })
+                .catch(function (err) {
+                  console.log(err)
+                })
+            })
+          } else {
+            return res.status(201).json('Identification incorrect')
+          }
+        },
+      ],
+      function (response) {
+        if (response._id) {
+          return res.status(200).json(nouvelle)
+        } else {
+          return res.satus(201).json(response)
+        }
+      },
+    )
+  } catch (error) {
+    return res.status(201).json('Identification incorrect')
+  }
+},
+exports.UpdatePasswordAdmin = async (req, res) => {
+  try {
+    const { codeAgent, ancien, nouvelle } = req.body
+    if (!codeAgent || !ancien || !nouvelle) {
+      return res.status(201).json('Veuillez renseigner les champs')
+    }
+
+    const user = await ModelAgentAdmin.findOne({
+      codeAgent: codeAgent,
+      active: true,
+    }).select('+password')
+
+    if (!user) {
+      return res.status(201).json('Accès non autorisée')
+    }
+
+    const isMatch = await user.matchPasswords(ancien)
+
+    asyncLab.waterfall(
+      [
+        function (done) {
+          if (isMatch) {
+            bcrypt.hash(nouvelle, 10, function (err, bcrypePassword) {
+              ModelAgentAdmin.findOneAndUpdate(
                 { codeAgent },
                 { $set: { password: bcrypePassword, first: false } },
                 { new: true },
