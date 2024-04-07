@@ -381,7 +381,6 @@ module.exports = {
           
         ])
         .then((response) => {
-          console.log(response)
           if (response) {
             return res.status(200).json(response.reverse())
           }
@@ -413,6 +412,7 @@ module.exports = {
                 $match: {
                   valide: false,
                   lot: periode.periode,
+                  feedback:"new"
                 },
               },
               {
@@ -462,50 +462,21 @@ module.exports = {
             ])
             .then((response) => {
               if (response) {
-                done(null, response)
+                done(response)
               }
             })
             .catch(function (err) {
               console.log(err)
             })
         },
-        function (response, done) {
-          modelReclamation
-            .aggregate([
-              {
-                $lookup: {
-                  from: 'demandes',
-                  localField: 'code',
-                  foreignField: '_id',
-                  as: 'demandeId',
-                },
-              },
-              {
-                $lookup: {
-                  from: 'reponses',
-                  localField: 'code',
-                  foreignField: '_id',
-                  as: 'reponseId',
-                },
-              },
-              {
-                $lookup: {
-                  from: 'agentadmins',
-                  localField: 'codeAgent',
-                  foreignField: 'codeAgent',
-                  as: 'agentadmin',
-                },
-              },
-              
-            ])
-            .then((reclamation) => {
-              return res.status(200).json({
-                reclamation: reclamation.reverse(),
-                response: response.reverse(),
-              })
-            })
-        },
-      ])
+        
+      ], function(result){
+        try {
+          return res.status(200).json(result)
+        } catch (error) {
+          
+        }
+      })
     } catch (error) {
       console.log(error)
     }

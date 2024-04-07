@@ -4,8 +4,8 @@ const ModelDemande = require('../Models/Demande')
 const ModelAgentAdmin = require('../Models/AgentAdmin')
 const _ = require('lodash')
 const ModelPeriode = require('../Models/Periode')
-const { dateActuelle } = require('../Static/Static_Function')
-const modelAction = require('../Models/Actions')
+const dayjs = require('dayjs')
+const Reclamation = require('../Models/Reclamation')
 
 module.exports = {
   reponse: (req, res) => {
@@ -126,17 +126,34 @@ module.exports = {
                 },
               },
             ]).then((result) => {
-              if(result.length > 0){
-                const doublon = result.filter(x=>x.agent.fonction === demande[0].agent.fonction)
-                if(doublon.length > 0){
-                  done(`Ce client a été visiter le ${dateActuelle(
-                    doublon[0]?.demande.createdAt,
-                  )} par ${doublon[0].agent.nom} code : ${doublon[0].agent.codeAgent}`)
-                }else{
+              if (result.length > 0) {
+                const doublon = result.filter(
+                  (x) => x.agent.fonction === demande[0].agent.fonction,
+                )
+                if (doublon.length > 0) {
+                  if (
+                    doublon[0].demande.codeAgent === demande[0].agent.codeAgent
+                  ) {
+                    done(`Vous avez visité le client ${
+                      doublon[0]?.codeclient
+                    } le ${dayjs(demande[0].createdAt).format('DD/MM/YYYY')}
+                    pour plus de confirmations, veuillez vérifier dans vos visites conformes
+                    `)
+                  } else {
+                    done(
+                      `Ce client a été visiter le ${dayjs(
+                        doublon[0]?.demande.createdAt,
+                      ).format('DD/MM/YYYY')} par ${
+                        doublon[0].agent.nom
+                      } code : ${doublon[0].agent.codeAgent} à ${dayjs(
+                        doublon[0]?.createdAt,
+                      ).format('hh:mm:ss')} `,
+                    )
+                  }
+                } else {
                   done(null, periode, demande, agent)
                 }
-              }
-               else {
+              } else {
                 done(null, periode, demande, agent)
               }
             })
@@ -161,76 +178,28 @@ module.exports = {
             })
               .then((response) => {
                 if (response) {
-                  done(null, response)
+                  done(null, demande, response)
                 } else {
                   done("Erreur d'enregistrement")
                 }
               })
               .catch(function (err) {
-                console.log(err)
                 done('Erreur 2')
               })
           },
-          function (reponse, done) {
-            const table = ['defaulted', 'expired']
-            if (table.includes(reponse.PayementStatut)) {
-              modelAction
-                .create({
-                  idReponse: reponse._id,
-                  action : "undefined"
+          function (demande, reponse, done) {
+            try {
+              Reclamation.deleteMany({ code: demande._id })
+                .then((deleted) => {
+                  done(reponse)
                 })
-                .then((actions) => {
-                  if (actions) {
-                    done(reponse)
-                  }
-                })
-            }else{
-              done(reponse)
-            }
+                .catch(function (err) {})
+            } catch (error) {}
           },
         ],
         function (result) {
           if (result.idDemande) {
-            ModelDemande.aggregate([
-              { $match: { idDemande: result.idDemande } },
-              {
-                $lookup: {
-                  from: 'zones',
-                  localField: 'codeZone',
-                  foreignField: 'idZone',
-                  as: 'zone',
-                },
-              },
-              {
-                $lookup: {
-                  from: 'reponses',
-                  localField: 'idDemande',
-                  foreignField: 'idDemande',
-                  as: 'reponse',
-                },
-              },
-              { $unwind: '$reponse' },
-              {
-                $lookup: {
-                  from: 'agentadmins',
-                  localField: 'reponse.codeAgent',
-                  foreignField: 'codeAgent',
-                  as: 'agent',
-                },
-              },
-              { $unwind: '$agent' },
-              { $unwind: '$zone' },
-            ])
-              .then((response) => {
-                if (response) {
-                  return res.status(200).json(response[0])
-                } else {
-                  return res.status(400).json('Erreur 4')
-                }
-              })
-              .catch(function (err) {
-                console.log(err)
-              })
+            return res.status(200).json(result.idDemande)
           } else {
             return res.status(400).json(result)
           }
